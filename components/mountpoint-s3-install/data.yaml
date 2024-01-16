@@ -1,0 +1,24 @@
+name: mountpoint-s3-install
+description: 'Install mount-s3 command on Amazon Linux 2'
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: DownloadMountS3Package
+        action: WebDownload
+        inputs:
+          - source: 'https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm'
+            destination: /tmp/mount-s3.rpm
+      - name: install-mount-s3
+        action: ExecuteBash
+        inputs:
+          commands:
+            - yum install -y /tmp/mount-s3.rpm
+  - name: validate
+    steps:
+      - name: confirm-mysql-command
+        action: ExecuteBash
+        inputs:
+          commands:
+            - type mount-s3
+            - mount-s3 --version
