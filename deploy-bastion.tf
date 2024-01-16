@@ -3,10 +3,10 @@ resource "aws_autoscaling_group" "bastion" {
 
   vpc_zone_identifier = module.deploy_network.private_subnets
 
-  max_size         = 1
-  min_size         = 0
-  desired_capacity = 1 # run
-  # desired_capacity = 0  # stop
+  max_size = 1
+  min_size = 0
+  # desired_capacity = 1 # run
+  desired_capacity = 0 # stop
 
   health_check_type         = local.autoscaling_group_healh_check_type_ec2
   health_check_grace_period = 300
