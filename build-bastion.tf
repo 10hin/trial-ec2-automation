@@ -7,7 +7,7 @@ resource "aws_imagebuilder_image_pipeline" "bastion" {
 
 resource "aws_imagebuilder_image_recipe" "bastion" {
   name         = "${local.project_name}-bastion"
-  version      = "1.1.2"
+  version      = "1.2.0"
   parent_image = local.al2_arn_pattern
   block_device_mapping {
     device_name = "/dev/xvda"
@@ -21,16 +21,25 @@ resource "aws_imagebuilder_image_recipe" "bastion" {
   }
 
   component {
-    component_arn = replace(aws_imagebuilder_component.hello.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.hello.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
+  }
+  component {
+    component_arn = "arn:aws:imagebuilder:ap-northeast-1:aws:component/aws-cli-version-2-linux/x.x.x"
+  }
+  component {
+    component_arn = replace(aws_imagebuilder_component.mountpoint_s3_install.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
+  }
+  component {
+    component_arn = replace(aws_imagebuilder_component.mountpoint_s3_automount.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
   }
   component {
     component_arn = "arn:aws:imagebuilder:ap-northeast-1:aws:component/amazon-cloudwatch-agent-linux/x.x.x"
   }
   component {
-    component_arn = replace(aws_imagebuilder_component.cloudwatch_agent_bastion.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.cloudwatch_agent_bastion.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
   }
   component {
-    component_arn = replace(aws_imagebuilder_component.mariadb_client.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.mariadb_client.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
   }
 
   systems_manager_agent {

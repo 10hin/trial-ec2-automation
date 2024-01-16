@@ -7,7 +7,7 @@ resource "aws_imagebuilder_image_pipeline" "proxy" {
 
 resource "aws_imagebuilder_image_recipe" "proxy" {
   name         = "${local.project_name}-proxy"
-  version      = "1.1.0"
+  version      = "1.1.1"
   parent_image = "arn:aws:imagebuilder:${local.region}:aws:image/amazon-linux-2-x86/x.x.x"
   block_device_mapping {
     device_name = "/dev/xvda"
@@ -21,16 +21,19 @@ resource "aws_imagebuilder_image_recipe" "proxy" {
   }
 
   component {
-    component_arn = replace(aws_imagebuilder_component.hello.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.hello.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
+  }
+  component {
+    component_arn = "arn:aws:imagebuilder:ap-northeast-1:aws:component/aws-cli-version-2-linux/x.x.x"
   }
   component {
     component_arn = "arn:aws:imagebuilder:ap-northeast-1:aws:component/amazon-cloudwatch-agent-linux/x.x.x"
   }
   component {
-    component_arn = replace(aws_imagebuilder_component.cloudwatch_agent_proxy.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.cloudwatch_agent_proxy.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
   }
   component {
-    component_arn = replace(aws_imagebuilder_component.squid.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+$/", "/x.x.x")
+    component_arn = replace(aws_imagebuilder_component.squid.arn, "/\\/[0-9]+\\.[0-9]+\\.[0-9]+.*$/", "/x.x.x")
   }
 
   systems_manager_agent {

@@ -16,6 +16,33 @@ resource "aws_imagebuilder_component" "mariadb_client" {
   skip_destroy = true
 }
 
+resource "aws_imagebuilder_component" "mountpoint_s3_install" {
+  name     = "${local.project_name}-mountpoint-s3-install"
+  platform = local.imagebuilder_component_platform_linux
+  version  = "1.0.0"
+  data     = file("./components/mountpoint-s3-install/data.yaml")
+}
+
+resource "aws_s3_object" "automount_service_unit_file" {
+  bucket = aws_s3_bucket.configuration_resources.bucket
+  key    = "mountpoint-s3-automount/mount-s3.service"
+
+  content = templatefile("${path.module}/configurations/mountpoint-s3-automount/mount-s3.service.tpl", {
+    bucket = aws_s3_bucket.persistent_volume.bucket
+  })
+}
+resource "aws_imagebuilder_component" "mountpoint_s3_automount" {
+  name     = "${local.project_name}-mountpoint-s3-automount"
+  platform = local.imagebuilder_component_platform_linux
+  version  = "1.0.0"
+  data = templatefile("./components/mountpoint-s3-automount/data.yaml.tpl", {
+    aws_account_id        = local.aws_account_id
+    resource_bucket       = aws_s3_object.automount_service_unit_file.bucket
+    service_unit_file_key = aws_s3_object.automount_service_unit_file.key
+    mount_bucket          = aws_s3_bucket.persistent_volume.bucket
+  })
+}
+
 resource "aws_imagebuilder_component" "squid" {
   name     = "${local.project_name}-squid"
   platform = local.imagebuilder_component_platform_linux
@@ -50,7 +77,7 @@ resource "aws_s3_object" "cloudwatch_agent_bastion" {
 resource "aws_imagebuilder_component" "cloudwatch_agent_bastion" {
   name     = "${local.project_name}-cwagent-config-bastion"
   platform = local.imagebuilder_component_platform_linux
-  version  = "1.0.0"
+  version  = "1.0.5"
   data = templatefile(
     "./components/amazon-cloudwatch-agent-config/bastion/data.yaml.tpl",
     {
@@ -72,7 +99,7 @@ resource "aws_s3_object" "cloudwatch_agent_proxy" {
 resource "aws_imagebuilder_component" "cloudwatch_agent_proxy" {
   name     = "${local.project_name}-cwagent-config-proxy"
   platform = local.imagebuilder_component_platform_linux
-  version  = "1.0.0"
+  version  = "1.0.5"
   data = templatefile(
     "./components/amazon-cloudwatch-agent-config/proxy/data.yaml.tpl",
     {

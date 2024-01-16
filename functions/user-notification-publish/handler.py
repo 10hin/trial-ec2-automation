@@ -39,8 +39,7 @@ def main(event, context):
         baseURL = baseURL[:-1]
 
     commonURL = f'{baseURL}/?{IMAGE_ID_PARAMETER_KEY}={imageID}&{TASK_TOKEN_PARAMETER_KEY}={taskTokenURLSafe}'
-    approveURL = f'{commonURL}&{USER_DECISION_PARAMETER_KEY}=approve'
-    rejectURL = f'{commonURL}&{USER_DECISION_PARAMETER_KEY}=reject'
+    approveURL = f'{commonURL}'
 
     message = f'''
     AMI build DONE!
@@ -53,14 +52,8 @@ def main(event, context):
     
 
     -----
-    APPROVE:
-    To approve this image and deploy with replacing EC2 instance, click following link:
+    To approve or reject this image and deploy with replacing EC2 instance, click following link:
     {approveURL}
-
-    -----
-    REJECT:
-    To reject this image and keep EC2 instance, click following link:
-    {rejectURL}
 
     -----
     '''

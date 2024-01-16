@@ -42,6 +42,9 @@ resource "aws_launch_template" "proxy" {
   lifecycle {
     ignore_changes = [
       image_id,
+      description,
+      tags,
+      tags_all,
     ]
   }
 }

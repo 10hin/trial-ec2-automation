@@ -153,6 +153,10 @@ data "aws_iam_policy_document" "allow_refresh_instance" {
     ])
   }
 }
+resource "aws_iam_role_policy" "cicd_allow_s3_mount" {
+  role   = aws_iam_role.cicd.name
+  policy = data.aws_iam_policy_document.mount_persistent_volume.json
+}
 
 data "archive_file" "user_notification_code" {
   type        = "zip"
@@ -212,7 +216,14 @@ resource "aws_sns_topic_subscription" "user_notification_email_subscription" {
 data "archive_file" "user_callback_code" {
   type        = "zip"
   output_path = "${path.module}/functions/user-callback.zip"
-  source_file = "${path.module}/functions/user-callback/handler.py"
+  source {
+    filename = "handler.py"
+    content  = file("${path.module}/functions/user-callback/handler.py")
+  }
+  source {
+    filename = "index.html"
+    content  = file("${path.module}/functions/user-callback/index.html")
+  }
 }
 
 resource "aws_lambda_function" "user_callback" {

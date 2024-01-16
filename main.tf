@@ -199,6 +199,41 @@ data "aws_imagebuilder_image" "al2" {
   arn = local.al2_arn_pattern
 }
 
+resource "aws_s3_bucket" "persistent_volume" {
+  bucket = "persistent-volume-${local.aws_account_id}"
+}
+resource "aws_s3_bucket_public_access_block" "persistent_volume" {
+  bucket = aws_s3_bucket.persistent_volume.bucket
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+data "aws_iam_policy_document" "mount_persistent_volume" {
+  statement {
+    sid = "MountpointFullBucketAccess"
+    actions = [
+      "s3:ListBucket",
+    ]
+    resources = [
+      aws_s3_bucket.persistent_volume.arn,
+    ]
+  }
+  statement {
+    sid = "MountpointFullObjectAccess"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:AbortMultipartUpload",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.persistent_volume.arn}/*",
+    ]
+  }
+}
+
 
 #
 # Traffic management

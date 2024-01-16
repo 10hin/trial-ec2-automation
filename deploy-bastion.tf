@@ -42,6 +42,9 @@ resource "aws_launch_template" "bastion" {
   lifecycle {
     ignore_changes = [
       image_id,
+      description,
+      tags,
+      tags_all,
     ]
   }
 }
@@ -52,6 +55,10 @@ resource "aws_security_group" "bastion" {
 resource "aws_iam_role" "bastion" {
   name               = "${local.project_name}-bastion"
   assume_role_policy = data.aws_iam_policy_document.allow_assume_by_instance.json
+}
+resource "aws_iam_role_policy" "bastion_allow_s3_mount" {
+  role   = aws_iam_role.bastion.name
+  policy = data.aws_iam_policy_document.mount_persistent_volume.json
 }
 resource "aws_iam_role_policy_attachment" "bastion_ssm" {
   role       = aws_iam_role.bastion.name
