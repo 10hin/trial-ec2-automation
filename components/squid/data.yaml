@@ -1,0 +1,19 @@
+name: squid
+description: 'Install squid proxy on Amazon Linux 2'
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: install-squid
+        action: ExecuteBash
+        inputs:
+          commands:
+            - yum install -y squid
+            - systemctl start squid
+  - name: validate
+    steps:
+      - name: confirm-mysql-command
+        action: ExecuteBash
+        inputs:
+          commands:
+            - systemctl status squid

@@ -1,0 +1,63 @@
+agent:
+  metrics_collection_interval: 60
+  debug: false
+  logfile: /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log
+metrics:
+  append_dimensions:
+    ImageID: '${aws:ImageId}'
+    InstanceId: '${aws:InstanceId}'
+    InstanceType: '${aws:InstanceType}'
+    AutoScalingGroupName: '${aws:AutoScalingGroupName}'
+  metrics_collected:
+    cpu:
+      resources: ['*']
+      measurement:
+        - name: cpu_usage_idle
+          unit: Percent
+        - name: cpu_time_idle
+          # 1/100秒単位だが対応する単位がCloudWatchにない
+          unit: None
+        - name: cpu_usage_iowait
+          unit: Percent
+        - name: cpu_time_iowait
+          # 1/100秒単位だが対応する単位がCloudWatchにない
+          unit: None
+        - name: cpu_usage_user
+          unit: Percent
+        - name: cpu_time_user
+          # 1/100秒単位だが対応する単位がCloudWatchにない
+          unit: None
+        - name: cpu_usage_system
+          unit: Percent
+        - name: cpu_time_system
+          # 1/100秒単位だが対応する単位がCloudWatchにない
+          unit: None
+      totalcpu: false
+    disk:
+      resources: ['*']
+      measurement:
+        - name: used_percent
+          unit: Percent
+        - name: used
+          unit: Bytes
+        - name: disk_inodes_free
+          unit: Count
+    diskio:
+      resources: ['*']
+      measurement:
+        - name: diskio_io_time
+          unit: Milliseconds
+    mem:
+      resources: ['*']
+      measurement:
+        - name: mem_used_percent
+          unit: Percent
+        - name: mem_used
+          unit: Bytes
+    swap:
+      resources: ['*']
+      measurement:
+        - name: swap_used_percent
+          unit: Percent
+        - name: swap_used
+          unit: Bytes

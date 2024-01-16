@@ -1,0 +1,19 @@
+name: mariadb-client
+description: 'Install mariadb client("mysql" command) on Amazon Linux 2'
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: install-mariadb
+        action: ExecuteBash
+        inputs:
+          commands:
+            - yum install -y mariadb
+  - name: validate
+    steps:
+      - name: confirm-mysql-command
+        action: ExecuteBash
+        inputs:
+          commands:
+            - type mysql
+            - mysql --version
