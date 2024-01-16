@@ -91,8 +91,10 @@ resource "aws_vpc_endpoint" "deploy_ifep" {
   service_name      = "com.amazonaws.${local.region}.${each.key}"
   vpc_endpoint_type = local.vpc_endpoint_type_interface
   vpc_id            = module.deploy_network.vpc_id
-  # subnet_ids          = slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count))
-  subnet_ids          = []
+  # run
+  subnet_ids = slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count))
+  # stop
+  # subnet_ids          = []
   security_group_ids  = [aws_security_group.deploy_ifep[each.key].id]
   private_dns_enabled = true
 }

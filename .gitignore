@@ -1,5 +1,7 @@
 /.terraform/
 .terraform.lock.hcl
 *plan*.out
+*.tfstate
+*.tfstate*
 
 functions/*.zip

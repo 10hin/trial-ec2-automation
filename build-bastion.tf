@@ -7,7 +7,7 @@ resource "aws_imagebuilder_image_pipeline" "bastion" {
 
 resource "aws_imagebuilder_image_recipe" "bastion" {
   name         = "${local.project_name}-bastion"
-  version      = "1.1.0"
+  version      = "1.1.2"
   parent_image = local.al2_arn_pattern
   block_device_mapping {
     device_name = "/dev/xvda"
