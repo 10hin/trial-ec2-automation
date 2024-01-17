@@ -5,8 +5,7 @@ resource "aws_autoscaling_group" "proxy" {
 
   max_size = 1
   min_size = 0
-  # desired_capacity = 1 # run
-  desired_capacity = 0 # stop
+  desired_capacity = var.status == "up" ? 1 : 0
 
   health_check_type         = local.autoscaling_group_healh_check_type_ec2
   health_check_grace_period = 300

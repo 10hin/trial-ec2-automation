@@ -14,17 +14,8 @@ phases:
         action: ExecuteBash
         inputs:
           commands:
-            # including debug commands
             - ( echo; echo 'user_allow_other' ) | tee -a /etc/fuse.conf
             - mkdir -p /mnt/${mount_bucket}
-            #- systemctl status mount-s3.service     # DEBUG
-            #- journalctl -n 25 -u mount-s3.service  # DEBUG
             - systemctl daemon-reload
-            #- systemctl status mount-s3.service     # DEBUG
-            #- journalctl -n 25 -u mount-s3.service  # DEBUG
             - systemctl enable mount-s3.service
-            #- systemctl status mount-s3.service     # DEBUG
-            #- journalctl -n 25 -u mount-s3.service  # DEBUG
             - systemctl start mount-s3.service
-            #- systemctl status mount-s3.service     # DEBUG
-            #- journalctl -n 25 -u mount-s3.service  # DEBUG

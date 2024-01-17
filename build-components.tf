@@ -35,7 +35,7 @@ resource "aws_s3_object" "automount_service_unit_file" {
 resource "aws_imagebuilder_component" "mountpoint_s3_automount" {
   name     = "${local.project_name}-mountpoint-s3-automount"
   platform = local.imagebuilder_component_platform_linux
-  version  = "1.0.4"
+  version  = "1.0.7"
   data = templatefile("./components/mountpoint-s3-automount/data.yaml.tpl", {
     aws_account_id        = local.aws_account_id
     resource_bucket       = aws_s3_object.automount_service_unit_file.bucket

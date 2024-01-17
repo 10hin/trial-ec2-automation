@@ -42,6 +42,7 @@ resource "aws_iam_role_policy_attachment" "build_shared_imagebuilder" {
 }
 resource "aws_iam_role_policy" "build_shared_download_s3_resources" {
   role   = aws_iam_role.build_shared.name
+  name = "allow-download-resources-from-s3"
   policy = data.aws_iam_policy_document.allow_access_configuration_resources_bucket.json
 }
 data "aws_iam_policy_document" "allow_access_configuration_resources_bucket" {
@@ -61,6 +62,11 @@ data "aws_iam_policy_document" "allow_access_configuration_resources_bucket" {
       aws_s3_bucket.configuration_resources.arn,
     ]
   }
+}
+resource "aws_iam_role_policy" "build_shared_mount_s3" {
+  role = aws_iam_role.build_shared.name
+  name = "allow-mount-s3"
+  policy = data.aws_iam_policy_document.mount_persistent_volume.json
 }
 resource "aws_iam_instance_profile" "build_shared" {
   name = aws_iam_role.build_shared.name
@@ -117,6 +123,7 @@ data "aws_iam_policy_document" "allow_invoke_send_notification_lambda" {
 }
 resource "aws_iam_role_policy" "allow_launch_template_update" {
   role   = aws_iam_role.cicd.name
+  name   = "allow-launch-template-update"
   policy = data.aws_iam_policy_document.allow_launch_template_update.json
 }
 data "aws_iam_policy_document" "allow_launch_template_update" {
@@ -140,6 +147,7 @@ data "aws_iam_policy_document" "allow_launch_template_update" {
 }
 resource "aws_iam_role_policy" "allow_refresh_instance" {
   role   = aws_iam_role.cicd.name
+  name   = "allow-refresh-instance"
   policy = data.aws_iam_policy_document.allow_refresh_instance.json
 }
 data "aws_iam_policy_document" "allow_refresh_instance" {
@@ -152,10 +160,6 @@ data "aws_iam_policy_document" "allow_refresh_instance" {
       aws_autoscaling_group.proxy.arn,
     ])
   }
-}
-resource "aws_iam_role_policy" "cicd_allow_s3_mount" {
-  role   = aws_iam_role.cicd.name
-  policy = data.aws_iam_policy_document.mount_persistent_volume.json
 }
 
 data "archive_file" "user_notification_code" {

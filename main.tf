@@ -81,8 +81,8 @@ module "deploy_network" {
     local.deploy_subnet_cidrs[local.subnet_type_private][azid]
   ]
 
-  enable_nat_gateway     = true
-  single_nat_gateway     = true
+  enable_nat_gateway     = var.status == "up"
+  single_nat_gateway     = var.status == "up"
   one_nat_gateway_per_az = false
 }
 resource "aws_vpc_endpoint" "deploy_ifep" {
@@ -91,10 +91,7 @@ resource "aws_vpc_endpoint" "deploy_ifep" {
   service_name      = "com.amazonaws.${local.region}.${each.key}"
   vpc_endpoint_type = local.vpc_endpoint_type_interface
   vpc_id            = module.deploy_network.vpc_id
-  # run
-  # subnet_ids = slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count))
-  # stop
-  subnet_ids          = []
+  subnet_ids = var.status == "up" ? slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count)) : []
   security_group_ids  = [aws_security_group.deploy_ifep[each.key].id]
   private_dns_enabled = true
 }
@@ -162,8 +159,8 @@ module "build_network" {
     local.build_subnet_cidrs[local.subnet_type_private][azid]
   ]
 
-  enable_nat_gateway     = true
-  single_nat_gateway     = true
+  enable_nat_gateway     = var.status == "up"
+  single_nat_gateway     = var.status == "up"
   one_nat_gateway_per_az = false
 }
 # resource "aws_vpc_endpoint" "build_ifep" {
