@@ -8,8 +8,18 @@
 <script type="application/javascript">
 //<![CDATA[
 const lambdaURLDomainName = "${lambda_url_domain_name}";
-function postDecision(decision) {
-    fetch('https://' + lambdaURLDomainName + '/', {
+function appendAlert(parent, type, message) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = [
+        `<div class="alert alert-${type} alert-dismissible fade show" role="alert">`,
+        `    <div>${message}</div>`,
+        '    <button type="button" class="btn-close" data-bs-dismiss="alert" arial-label="Close"></button>',
+        '</div>',
+    ].join('')
+    parent.append(wrapper);
+}
+function postDecision(decision, resultPlaceHolder) {
+    return fetch('https://' + lambdaURLDomainName + '/', {
         'method': 'POST',
         'headers': {
             'Content-Type': 'application/json',
@@ -20,12 +30,25 @@ function postDecision(decision) {
             'image_id': '${image_id}',
         }),
     })
+        .then((resp) => {
+            if (resp.ok) {
+                appendAlert(resultPlaceHolder, 'success', `Command ${decision} sent to server successfully. You can close this browser tab/window.`);
+            } else {
+                appendAlert(resultPlaceHolder, 'danger', `Command ${decision} sent to server, but some error happens on server (status: ${resp.status}). You can close this browser tab/window.`);
+                console.log('error response body: ' + resp.text());
+            }
+        })
+        .catch((error) => {
+            appendAlert(resultPlaceHolder, 'danger', `Command failed to send server (error: ${error}).  You can close this browser tab/window.`);
+            console.log(error);
+        });
 }
 function onDOMContentLoaded() {
+    const liveAlertPlaceHolder = document.getElementById('live_alert_place_holder');
     const approveBtn = document.getElementById('approve');
-    approveBtn.addEventListener('click', ()=> { postDecision('approve') });
+    approveBtn.addEventListener('click', ()=> { postDecision('approve', liveAlertPlaceHolder); });
     const rejectBtn = document.getElementById('reject');
-    rejectBtn.addEventListener('click', ()=> { postDecision('reject') });
+    rejectBtn.addEventListener('click', ()=> { postDecision('reject', liveAlertPlaceHolder); });
 }
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 //]]>
@@ -33,6 +56,7 @@ document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 </head>
 <body>
 <div class="container">
+    <div id="live_alert_place_holder"></div>
     <h2>Approve or reject Launch template update</h2>
     <p>
         Update launch template to use AMI: ${image_id}

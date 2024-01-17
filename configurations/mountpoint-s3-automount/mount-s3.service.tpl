@@ -5,10 +5,12 @@ AssertPathIsDirectory=/mnt/${bucket}
 
 [Service]
 Type=forking
-User=ec2-user
-Group=ec2-user
-ExecStart=/usr/bin/mount-s3 ${bucket} /mnt/${bucket}
+User=root
+Group=root
+ExecStart=/usr/bin/mount-s3 --expected-bucket-owner ${aws_account_id} --allow-delete --allow-other --file-mode 666 --dir-mode 777 ${bucket} /mnt/${bucket}
 ExecStop=/usr/bin/fusermount -u /mnt/${bucket}
+Restart=on-failure
+RestartSec=1s
 
 [Install]
 WantedBy=remote-fs.target
