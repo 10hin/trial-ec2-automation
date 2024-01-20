@@ -3,14 +3,23 @@ resource "aws_autoscaling_group" "bastion" {
 
   vpc_zone_identifier = module.deploy_network.private_subnets
 
-  max_size = 1
-  min_size = 0
+  max_size         = 1
+  min_size         = 0
   desired_capacity = var.status == "up" ? 1 : 0
 
   health_check_type         = local.autoscaling_group_healh_check_type_ec2
   health_check_grace_period = 300
 
   force_delete = true
+
+  dynamic "tag" {
+    for_each = data.aws_default_tags.current.tags
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
+  }
 
   launch_template {
     id      = aws_launch_template.bastion.id

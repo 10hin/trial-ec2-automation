@@ -23,6 +23,7 @@ provider "aws" {
 
 provider "archive" {}
 
+data "aws_default_tags" "current" {}
 
 #
 # NETWORK
@@ -88,10 +89,10 @@ module "deploy_network" {
 resource "aws_vpc_endpoint" "deploy_ifep" {
   for_each = toset(local.deploy_interface_endpoints)
 
-  service_name      = "com.amazonaws.${local.region}.${each.key}"
-  vpc_endpoint_type = local.vpc_endpoint_type_interface
-  vpc_id            = module.deploy_network.vpc_id
-  subnet_ids = var.status == "up" ? slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count)) : []
+  service_name        = "com.amazonaws.${local.region}.${each.key}"
+  vpc_endpoint_type   = local.vpc_endpoint_type_interface
+  vpc_id              = module.deploy_network.vpc_id
+  subnet_ids          = var.status == "up" ? slice(module.deploy_network.private_subnets, 0, min(local.deploy_interface_endpoint_az_count, local.deploy_az_count)) : []
   security_group_ids  = [aws_security_group.deploy_ifep[each.key].id]
   private_dns_enabled = true
 }

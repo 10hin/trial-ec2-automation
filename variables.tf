@@ -1,4 +1,4 @@
 variable "status" {
-  type = string
+  type    = string
   default = "down"
 }

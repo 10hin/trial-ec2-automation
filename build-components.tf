@@ -28,7 +28,7 @@ resource "aws_s3_object" "automount_service_unit_file" {
   key    = "mountpoint-s3-automount/mount-s3.service"
 
   content = templatefile("${path.module}/configurations/mountpoint-s3-automount/mount-s3.service.tpl", {
-    bucket = aws_s3_bucket.persistent_volume.bucket
+    bucket         = aws_s3_bucket.persistent_volume.bucket
     aws_account_id = local.aws_account_id
   })
 }

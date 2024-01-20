@@ -15,9 +15,7 @@ resource "aws_imagebuilder_infrastructure_configuration" "shared" {
   ]
   terminate_instance_on_failure = true
 
-  resource_tags = {
-    Purpose = "EC2Automation"
-  }
+  resource_tags = merge(data.aws_default_tags.current.tags, {})
 }
 resource "aws_security_group" "build_shared_infra" {
   name   = "build-shared-infra"
@@ -42,7 +40,7 @@ resource "aws_iam_role_policy_attachment" "build_shared_imagebuilder" {
 }
 resource "aws_iam_role_policy" "build_shared_download_s3_resources" {
   role   = aws_iam_role.build_shared.name
-  name = "allow-download-resources-from-s3"
+  name   = "allow-download-resources-from-s3"
   policy = data.aws_iam_policy_document.allow_access_configuration_resources_bucket.json
 }
 data "aws_iam_policy_document" "allow_access_configuration_resources_bucket" {
@@ -64,8 +62,8 @@ data "aws_iam_policy_document" "allow_access_configuration_resources_bucket" {
   }
 }
 resource "aws_iam_role_policy" "build_shared_mount_s3" {
-  role = aws_iam_role.build_shared.name
-  name = "allow-mount-s3"
+  role   = aws_iam_role.build_shared.name
+  name   = "allow-mount-s3"
   policy = data.aws_iam_policy_document.mount_persistent_volume.json
 }
 resource "aws_iam_instance_profile" "build_shared" {
