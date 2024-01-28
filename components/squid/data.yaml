@@ -9,6 +9,7 @@ phases:
         inputs:
           commands:
             - yum install -y squid
+            - systemctl enable squid
             - systemctl start squid
   - name: validate
     steps:

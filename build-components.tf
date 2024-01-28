@@ -47,7 +47,7 @@ resource "aws_imagebuilder_component" "mountpoint_s3_automount" {
 resource "aws_imagebuilder_component" "squid" {
   name     = "${local.project_name}-squid"
   platform = local.imagebuilder_component_platform_linux
-  version  = "1.0.0"
+  version  = "1.0.1"
   data     = file("./components/squid/data.yaml")
 
   skip_destroy = true

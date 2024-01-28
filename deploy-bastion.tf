@@ -45,6 +45,35 @@ resource "aws_launch_template" "bastion" {
     ] if contains(keys(output), "amis")
   ])[0]
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    http_protocol_ipv6          = "disabled"
+    instance_metadata_tags      = "enabled"
+  }
+
+  private_dns_name_options {
+    enable_resource_name_dns_a_record    = true
+    enable_resource_name_dns_aaaa_record = false
+    hostname_type                        = "ip-name"
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = data.aws_default_tags.current.tags
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags          = data.aws_default_tags.current.tags
+  }
+
+  tag_specifications {
+    resource_type = "network-interface"
+    tags          = data.aws_default_tags.current.tags
+  }
+
   update_default_version = true
 
   lifecycle {

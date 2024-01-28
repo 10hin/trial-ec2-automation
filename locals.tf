@@ -31,7 +31,9 @@ locals {
   #imagebuilder_component_platform_windows = "Windows"
   # enum autoscaling_group_healh_check_type
   autoscaling_group_healh_check_type_ec2 = "EC2"
-  #autoscaling_group_healh_check_type_elb = "ELB"
+  autoscaling_group_healh_check_type_elb = "ELB"
+  # enum autoscaling_group_traffic_source_type
+  autoscaling_group_traffic_source_type_elbv2 = "elbv2"
   # enum ec2_instance_type
   ec2_instance_type_t2_nano  = "t2.nano"
   ec2_instance_type_t3_nano  = "t3.nano"
@@ -43,27 +45,48 @@ locals {
   # enum lambda_function_url_authorization_type
   #lambda_function_url_authorization_type_aws_iam = "AWS_IAM"
   lambda_function_url_authorization_type_none = "NONE"
+  # enum load_balancer_type
+  #load_balancer_type_application = "application"
+  load_balancer_type_network = "network"
+  # enum lb_protocol
+  lb_protocol_http = "HTTP"
+  lb_protocol_tcp  = "TCP"
+  # enum lb_listener_action_type
+  # lb_listener_action_type_fixed_response = "fixed-response"
+  lb_listener_action_type_forward = "forward"
+  # enum tcp_port
+  tcp_port_squid = 3128
+  tcp_port_https = 443
+  tcp_port_dns   = 53
+  udp_port_dns   = 53
 
   # well known protocol
   protocol_https = {
     ip_protocol = local.ip_protocol_tcp
     port_range = {
-      from = 443
-      to   = 443
+      from = local.tcp_port_https
+      to   = local.tcp_port_https
     }
   }
   protocol_dns_tcp = {
     ip_protocol = local.ip_protocol_tcp
     port_range = {
-      from = 53
-      to   = 53
+      from = local.tcp_port_dns
+      to   = local.tcp_port_dns
     }
   }
   protocol_dns_udp = {
     ip_protocol = local.ip_protocol_udp
     port_range = {
-      from = 53
-      to   = 53
+      from = local.udp_port_dns
+      to   = local.udp_port_dns
+    }
+  }
+  protocol_squid = {
+    ip_protocol = local.ip_protocol_tcp
+    port_range = {
+      from = local.tcp_port_squid
+      to   = local.tcp_port_squid
     }
   }
 

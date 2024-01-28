@@ -315,6 +315,11 @@ locals {
       to       = aws_security_group.deploy_ifep["logs"].id
       protocol = local.protocol_https
     }
+    "proxy_lb_to_proxy" = {
+      from     = aws_security_group.proxy_lb.id
+      to       = aws_security_group.proxy.id
+      protocol = local.protocol_squid
+    }
   }
 }
 

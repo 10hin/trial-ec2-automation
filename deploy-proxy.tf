@@ -7,7 +7,7 @@ resource "aws_autoscaling_group" "proxy" {
   min_size         = 0
   desired_capacity = var.status == "up" ? 1 : 0
 
-  health_check_type         = local.autoscaling_group_healh_check_type_ec2
+  health_check_type         = local.autoscaling_group_healh_check_type_elb
   health_check_grace_period = 300
 
   force_delete = true
@@ -24,6 +24,11 @@ resource "aws_autoscaling_group" "proxy" {
   launch_template {
     id      = aws_launch_template.proxy.id
     version = "$Default"
+  }
+
+  traffic_source {
+    identifier = aws_lb_target_group.proxy.arn
+    type       = local.autoscaling_group_traffic_source_type_elbv2
   }
 }
 resource "aws_launch_template" "proxy" {
@@ -44,6 +49,35 @@ resource "aws_launch_template" "proxy" {
       ami.image if ami.region == local.region
     ] if contains(keys(output), "amis")
   ])[0]
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    http_protocol_ipv6          = "disabled"
+    instance_metadata_tags      = "enabled"
+  }
+
+  private_dns_name_options {
+    enable_resource_name_dns_a_record    = true
+    enable_resource_name_dns_aaaa_record = false
+    hostname_type                        = "ip-name"
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = data.aws_default_tags.current.tags
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags          = data.aws_default_tags.current.tags
+  }
+
+  tag_specifications {
+    resource_type = "network-interface"
+    tags          = data.aws_default_tags.current.tags
+  }
 
   update_default_version = true
 
@@ -76,4 +110,46 @@ resource "aws_iam_role_policy_attachment" "proxy_metrics" {
 resource "aws_iam_instance_profile" "proxy" {
   role = aws_iam_role.proxy.name
   name = aws_iam_role.proxy.name
+}
+
+resource "aws_lb" "proxy" {
+  name               = "${local.project_name}-proxy"
+  load_balancer_type = local.load_balancer_type_network
+  internal           = true
+  security_groups    = [aws_security_group.proxy_lb.id]
+
+  subnets = module.deploy_network.private_subnets
+}
+
+resource "aws_lb_listener" "proxy" {
+  load_balancer_arn = aws_lb.proxy.arn
+  port              = local.tcp_port_squid
+  protocol          = local.lb_protocol_tcp
+  default_action {
+    type             = local.lb_listener_action_type_forward
+    target_group_arn = aws_lb_target_group.proxy.arn
+  }
+}
+
+resource "aws_lb_target_group" "proxy" {
+  name     = "${local.project_name}-proxy"
+  port     = local.tcp_port_squid
+  protocol = local.lb_protocol_tcp
+  vpc_id   = module.deploy_network.vpc_id
+  health_check {
+    enabled             = true
+    interval            = 30
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    port                = local.tcp_port_squid
+    protocol            = local.lb_protocol_http
+    path                = "/"
+    matcher             = "400"
+    timeout             = 3
+  }
+}
+
+resource "aws_security_group" "proxy_lb" {
+  name   = "${local.project_name}-proxy-lb"
+  vpc_id = module.deploy_network.vpc_id
 }
