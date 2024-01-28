@@ -59,6 +59,8 @@ locals {
   tcp_port_https = 443
   tcp_port_dns   = 53
   udp_port_dns   = 53
+  # enum dns_record_type
+  dns_record_type_A = "A"
 
   # well known protocol
   protocol_https = {

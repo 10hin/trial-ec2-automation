@@ -94,6 +94,13 @@ resource "aws_security_group" "proxy" {
   name   = "proxy"
   vpc_id = module.deploy_network.vpc_id
 }
+resource "aws_vpc_security_group_egress_rule" "to_internet" {
+  security_group_id = aws_security_group.proxy.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = local.protocol_https.ip_protocol
+  from_port         = local.protocol_https.port_range.from
+  to_port           = local.protocol_https.port_range.to
+}
 
 resource "aws_iam_role" "proxy" {
   name               = "${local.project_name}-proxy"
@@ -113,6 +120,7 @@ resource "aws_iam_instance_profile" "proxy" {
 }
 
 resource "aws_lb" "proxy" {
+  for_each           = var.status == "up" ? toset(["this"]) : toset([])
   name               = "${local.project_name}-proxy"
   load_balancer_type = local.load_balancer_type_network
   internal           = true
@@ -122,7 +130,8 @@ resource "aws_lb" "proxy" {
 }
 
 resource "aws_lb_listener" "proxy" {
-  load_balancer_arn = aws_lb.proxy.arn
+  for_each          = aws_lb.proxy
+  load_balancer_arn = aws_lb.proxy[each.key].arn
   port              = local.tcp_port_squid
   protocol          = local.lb_protocol_tcp
   default_action {
@@ -152,4 +161,17 @@ resource "aws_lb_target_group" "proxy" {
 resource "aws_security_group" "proxy_lb" {
   name   = "${local.project_name}-proxy-lb"
   vpc_id = module.deploy_network.vpc_id
+}
+
+resource "aws_route53_record" "proxy_lb" {
+  for_each = aws_lb.proxy
+
+  zone_id = aws_route53_zone.deploy_internal.zone_id
+  name    = "proxy.vpc.internal"
+  type    = local.dns_record_type_A
+  alias {
+    name                   = aws_lb.proxy[each.key].dns_name
+    zone_id                = aws_lb.proxy[each.key].zone_id
+    evaluate_target_health = true
+  }
 }

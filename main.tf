@@ -234,6 +234,17 @@ data "aws_iam_policy_document" "mount_persistent_volume" {
 
 
 #
+# Internal DNS zone
+#
+resource "aws_route53_zone" "deploy_internal" {
+  name = "vpc.internal"
+  vpc {
+    vpc_id = module.deploy_network.vpc_id
+  }
+}
+
+
+#
 # Traffic management
 #
 
@@ -284,6 +295,11 @@ locals {
       from     = aws_security_group.bastion.id
       to       = aws_security_group.deploy_ifep["logs"].id
       protocol = local.protocol_https
+    }
+    "bastion_to_proxy_lb" = {
+      from     = aws_security_group.bastion.id
+      to       = aws_security_group.proxy_lb.id
+      protocol = local.protocol_squid
     }
     "proxy_to_ssm" = {
       from     = aws_security_group.proxy.id
