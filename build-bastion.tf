@@ -80,13 +80,40 @@ resource "aws_sfn_state_machine" "bastion_cicd" {
       "States" : {
         "StartImagePipelineExecution" : {
           "Type" : "Task",
-          "Next" : "GetImage",
+          "Next" : "RegisterAndWaitCallback",
           "Parameters" : {
             "ClientToken.$" : "$$.Execution.Name",
             "ImagePipelineArn" : aws_imagebuilder_image_pipeline.bastion.arn
           },
           "Resource" : "arn:aws:states:::aws-sdk:imagebuilder:startImagePipelineExecution"
         },
+        "RegisterAndWaitCallback" : {
+          "Type" : "Task",
+          "Resource" : "arn:aws:states:::states:startExecution.waitForTaskToken",
+          "HeartbeatSeconds" : (6 * 60 * 60) # Timeout with 6 hour
+          "Parameters" : {
+            "StateMachineArn" : aws_sfn_state_machine.register_task_token.arn,
+            "Input" : {
+              "taskToken.$" : "$$.Task.Token",
+              "imageARN.$" : "$.ImageBuildVersionArn"
+            }
+          },
+          "ResultSelector" : {
+            "ImageBuildVersionArn.$" : "$.ImageARN"
+          }
+          "ResultPath" : "$",
+          "Next" : "GetImage"
+        },
+        "GetImage" : {
+          "Type" : "Task",
+          "Parameters" : {
+            "ImageBuildVersionArn.$" : "$.ImageBuildVersionArn"
+          },
+          "ResultPath" : "$.getImageResult",
+          "Resource" : "arn:aws:states:::aws-sdk:imagebuilder:getImage",
+          "Next" : "SNS Publish succeed"
+        },
+        /*
         "Wait 1 min" : {
           "Type" : "Wait",
           "Seconds" : 60,
@@ -118,6 +145,7 @@ resource "aws_sfn_state_machine" "bastion_cicd" {
           ],
           "Default" : "Wait 1 min"
         },
+        */
         "SNS Publish succeed" : {
           "Type" : "Task",
           "Resource" : "arn:aws:states:::lambda:invoke.waitForTaskToken",

@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~> 1.6.0"
+  required_version = "~> 1.11.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -122,7 +122,9 @@ locals {
   #   "ssm",
   #   "ec2messages",
   #   "ssmmessages",
+  #   "imagebuilder",
   # ]
+  # build_interface_endpoint_az_count = 1
   # build_gateway_endpoints = [
   #   "s3",
   # ]
@@ -167,26 +169,263 @@ module "build_network" {
 # resource "aws_vpc_endpoint" "build_ifep" {
 #   for_each = toset(local.build_interface_endpoints)
 #
-#   service_name = "com.amazonaws.${local.region}.${each.key}"
-#   vpc_endpoint_type = local.vpc_endpoint_type_interface
-#   vpc_id = module.build_network.vpc_id
-#   subnet_ids = slice(module.build_network.private_subnets, 0, min(local.build_interface_endpoint_az_count, local.build_az_count))
+#   service_name        = "com.amazonaws.${local.region}.${each.key}"
+#   vpc_endpoint_type   = local.vpc_endpoint_type_interface
+#   vpc_id              = module.build_network.vpc_id
+#   subnet_ids          = slice(module.build_network.private_subnets, 0, min(local.build_interface_endpoint_az_count, local.build_az_count))
+#   security_group_ids  = [aws_security_group.build_ifep[each.key].id]
 #   private_dns_enabled = true
 # }
 # resource "aws_security_group" "build_ifep" {
 #   for_each = toset(local.build_interface_endpoints)
 #
-#   name = "build-vpce-${each.key}"
+#   name   = "build-vpce-${each.key}"
 #   vpc_id = module.build_network.vpc_id
 # }
 # resource "aws_vpc_endpoint" "build_gwep" {
 #   for_each = toset(local.build_gateway_endpoints)
 #
-#   service_name = "com.amazonaws.${local.region}.${each.key}"
+#   service_name      = "com.amazonaws.${local.region}.${each.key}"
 #   vpc_endpoint_type = local.vpc_endpoint_type_gateway
-#   vpc_id = module.build_network.vpc_id
-#   route_table_ids = module.build_network.private_route_table_ids
+#   vpc_id            = module.build_network.vpc_id
+#   route_table_ids   = module.build_network.private_route_table_ids
 # }
+
+
+resource "aws_sfn_state_machine" "register_task_token" {
+  name     = "${local.project_name}-register-task-token"
+  role_arn = aws_iam_role.register_task_token.arn
+  definition = jsonencode({
+    "StartAt" = "RegisterTaskToken"
+    "States" = {
+      "RegisterTaskToken" = {
+        "Type"     = "Task"
+        "Resource" = "arn:aws:states:::dynamodb:putItem"
+        "Arguments" = {
+          "TableName" = aws_dynamodb_table.callback_tokens.name
+          "Item" = {
+            "ImageARN" = {
+              "S" = "{% $states.input.imageARN %}"
+            }
+            "TaskToken" = {
+              "S" = "{% $states.input.taskToken %}"
+            }
+            "ExpiredAt" = {
+              "N" = "{% $string(($millis() / 1000) + 6 * 60 * 60) %}" # TaskToken expires with 6 hour.
+            }
+          }
+        }
+        "End" = true
+      }
+    }
+    "QueryLanguage" = "JSONata"
+  })
+}
+
+resource "aws_iam_role" "register_task_token" {
+  name               = "${local.project_name}-register-task-token"
+  assume_role_policy = data.aws_iam_policy_document.allow_assume_by_sfn.json
+}
+
+data "aws_iam_policy_document" "allow_register_task_token" {
+  statement {
+    actions = [
+      "dynamodb:PutItem",
+    ]
+    resources = [
+      aws_dynamodb_table.callback_tokens.arn,
+    ]
+  }
+}
+resource "aws_iam_role_policy" "register_task_token_allow_register_task_token" {
+  role   = aws_iam_role.register_task_token.name
+  name   = "allow-register-task-token"
+  policy = data.aws_iam_policy_document.allow_register_task_token.json
+}
+
+
+resource "aws_cloudwatch_event_rule" "imagebuilder_build_complete" {
+  name = "${local.project_name}-imagebuilder-build-complete"
+  event_pattern = jsonencode({
+    "detail-type" = ["EC2 Image Builder Image State Change"]
+    "source"      = ["aws.imagebuilder"]
+    "account"     = [local.aws_account_id]
+    "detail" = {
+      "state" = {
+        "status" = [
+          "AVAILABLE",
+          "CANCELLED",
+          "FAILED",
+        ]
+      }
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "build_complete_callback" {
+  rule      = aws_cloudwatch_event_rule.imagebuilder_build_complete.name
+  target_id = "callback"
+  arn       = aws_sfn_state_machine.build_complete_callback.arn
+  role_arn  = aws_iam_role.build_complete_callback_trigger.arn
+}
+
+resource "aws_iam_role" "build_complete_callback_trigger" {
+  name               = "${local.project_name}-build-complete-callback-trigger"
+  assume_role_policy = data.aws_iam_policy_document.allow_assume_by_eventbridge.json
+}
+
+data "aws_iam_policy_document" "allow_callback" {
+  statement {
+    actions   = ["states:StartExecution"]
+    resources = [aws_sfn_state_machine.build_complete_callback.arn]
+  }
+}
+resource "aws_iam_role_policy" "build_complete_callback_trigger_allow_callback" {
+  role   = aws_iam_role.build_complete_callback_trigger.name
+  name   = "allow-callback"
+  policy = data.aws_iam_policy_document.allow_callback.json
+}
+
+resource "aws_sfn_state_machine" "build_complete_callback" {
+  name     = "${local.project_name}-build-complete-callback"
+  role_arn = aws_iam_role.build_complete_callback.arn
+  definition = jsonencode({
+    "StartAt" = "WaitAvoidingQuickCallback"
+    "States" = {
+      "WaitAvoidingQuickCallback" = {
+        "Type"    = "Wait"
+        "Seconds" = 60
+        "Next"    = "AssignImageARN"
+      }
+      "AssignImageARN" = {
+        "Type" = "Pass"
+        "Assign" = {
+          "imageARN" = "{% $states.input.resources[0] %}"
+        }
+        "Next" = "GetTaskToken"
+      }
+      "GetTaskToken" = {
+        "Type"     = "Task"
+        "Resource" = "arn:aws:states:::dynamodb:getItem"
+        "Arguments" = {
+          "TableName" = aws_dynamodb_table.callback_tokens.name
+          "Key" = {
+            "ImageARN" = {
+              "S" = "{% $imageARN %}"
+            }
+          }
+          "ProjectionExpression" = "#T"
+          "ExpressionAttributeNames" = {
+            "#T" = "TaskToken"
+          }
+        }
+        "Assign" = {
+          "taskToken" = "{% $states.result.Item.TaskToken.S %}"
+          # TODO: Exceptional condition handling not implemented
+          # - case1: specified ImageARN record not found => "$states.result.Item" will not exist
+          # - case2: Record found, but does not have attribute "TaskToken" (i.e. invalid record)
+          #     => "$states.result.Item" exist, but "$.states.result.Item.TaskToken" not.
+          # both case can be ignored and state machine should succeed.
+        }
+        "Next" = "IfSucceed"
+      }
+      "IfSucceed" = {
+        "Type" = "Choice"
+        "Choices" = [
+          {
+            "Condition" = "{% $states.context.Execution.Input.detail.state.status = 'AVAILABLE' %}"
+            "Next"      = "CallbackSuccess"
+          },
+          {
+            "Condition" = "{% $states.context.Execution.Input.detail.state.status = 'FAILED' %}"
+            "Next"      = "CallbackFailure"
+          },
+        ]
+        "Default" = "CallbackCancelled"
+      }
+      "CallbackSuccess" = {
+        "Type"     = "Task"
+        "Resource" = "arn:aws:states:::aws-sdk:sfn:sendTaskSuccess"
+        "Arguments" = {
+          "TaskToken" = "{% $taskToken %}"
+          "Output"    = "{% $string({'Result': ('Image build  succeeded. ImageARN: ' & $imageARN), 'ImageARN': $imageARN }) %}"
+        }
+        "End" = true
+      }
+      "CallbackFailure" = {
+        "Type"     = "Task"
+        "Resource" = "arn:aws:states:::aws-sdk:sfn:sendTaskFailure"
+        "Arguments" = {
+          "TaskToken" = "{% $taskToken %}"
+          "Error"     = "ImageBuilderBuildFailed"
+          "Cause"     = "{% $states.context.Execution.Input.detail.state.reason %}"
+        }
+        "End" = true
+      }
+      "CallbackCancelled" = {
+        "Type"     = "Task"
+        "Resource" = "arn:aws:states:::aws-sdk:sfn:sendTaskFailure"
+        "Arguments" = {
+          "TaskToken" = "{% $taskToken %}"
+          "Error"     = "{% 'ImageBuilderBuildCancelled' %}"
+          "Cause"     = "{% 'ImageBuilder Build Cancelled. ImageARN: ' & $imageARN %}"
+        }
+        "End" = true
+      }
+    }
+    "QueryLanguage" = "JSONata"
+  })
+}
+
+resource "aws_iam_role" "build_complete_callback" {
+  name               = "${local.project_name}-build-complete-callback"
+  assume_role_policy = data.aws_iam_policy_document.allow_assume_by_sfn.json
+}
+
+data "aws_iam_policy_document" "allow_get_callback_tokens" {
+  statement {
+    actions = [
+      "dynamodb:GetItem",
+    ]
+    resources = [
+      aws_dynamodb_table.callback_tokens.arn,
+    ]
+  }
+}
+resource "aws_iam_role_policy" "build_complete_callback_allow_get_callback_tokens" {
+  role   = aws_iam_role.build_complete_callback.name
+  name   = "allow-get-callback-tokens"
+  policy = data.aws_iam_policy_document.allow_get_callback_tokens.json
+}
+
+data "aws_iam_policy_document" "allow_callback_to_build_orchestrator" {
+  statement {
+    actions = [
+      "states:SendTaskSuccess",
+      "states:SendTaskFailure",
+    ]
+    resources = ["arn:${local.aws_partition}:states:${local.region}:${local.aws_account_id}:stateMachine:*"]
+  }
+}
+resource "aws_iam_role_policy" "build_complete_callback_allow_callback_to_build_orchestrator" {
+  role   = aws_iam_role.build_complete_callback.name
+  name   = "allow-callback"
+  policy = data.aws_iam_policy_document.allow_callback_to_build_orchestrator.json
+}
+
+resource "aws_dynamodb_table" "callback_tokens" {
+  name         = "${local.project_name}-callback-tokens"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "ImageARN"
+  attribute {
+    name = "ImageARN"
+    type = "S"
+  }
+  ttl {
+    enabled        = true
+    attribute_name = "ExpiredAt"
+  }
+}
 
 
 #
@@ -265,6 +504,11 @@ locals {
       security_group_id = aws_security_group.proxy.id
     }
   }
+  # build_s3_access = {
+  #   "build_shared" = {
+  #     security_group_id = aws_security_group.build_shared_infra.id
+  #   }
+  # }
   sg_to_sg_access = {
     "bastion_to_ssm" = {
       from     = aws_security_group.bastion.id
@@ -336,6 +580,26 @@ locals {
       to       = aws_security_group.proxy.id
       protocol = local.protocol_squid
     }
+    # "build_shared_to_ssm" = {
+    #   from     = aws_security_group.build_shared_infra.id
+    #   to       = aws_security_group.build_ifep["ssm"].id
+    #   protocol = local.protocol_https
+    # }
+    # "build_shared_to_ssmmessages" = {
+    #   from     = aws_security_group.build_shared_infra.id
+    #   to       = aws_security_group.build_ifep["ssmmessages"].id
+    #   protocol = local.protocol_https
+    # }
+    # "build_shared_to_ec2messages" = {
+    #   from     = aws_security_group.build_shared_infra.id
+    #   to       = aws_security_group.build_ifep["ec2messages"].id
+    #   protocol = local.protocol_https
+    # }
+    # "build_shared_to_imagebuilder" = {
+    #   from     = aws_security_group.build_shared_infra.id
+    #   to       = aws_security_group.build_ifep["imagebuilder"].id
+    #   protocol = local.protocol_https
+    # }
   }
 }
 
@@ -370,6 +634,15 @@ resource "aws_vpc_security_group_egress_rule" "deploy_s3" {
   to_port           = local.protocol_https.port_range.to
   prefix_list_id    = aws_vpc_endpoint.deploy_gwep["s3"].prefix_list_id
 }
+# resource "aws_vpc_security_group_egress_rule" "build_s3" {
+#   for_each = local.build_s3_access
+#
+#   security_group_id = each.value.security_group_id
+#   ip_protocol       = local.protocol_https.ip_protocol
+#   from_port         = local.protocol_https.port_range.from
+#   to_port           = local.protocol_https.port_range.to
+#   prefix_list_id    = aws_vpc_endpoint.build_gwep["s3"].prefix_list_id
+# }
 
 # SecurityGroup to SecurityGroup
 resource "aws_vpc_security_group_egress_rule" "sg_to_sg" {

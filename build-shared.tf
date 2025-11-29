@@ -13,7 +13,7 @@ resource "aws_imagebuilder_infrastructure_configuration" "shared" {
     local.ec2_instance_type_t3_nano,
     local.ec2_instance_type_t3a_nano,
   ]
-  terminate_instance_on_failure = true
+  terminate_instance_on_failure = false
 
   resource_tags = merge(data.aws_default_tags.current.tags, {})
 }
@@ -89,6 +89,21 @@ data "aws_iam_policy_document" "allow_start_image_pipeline" {
       aws_imagebuilder_image_pipeline.bastion.arn,
       aws_imagebuilder_image_pipeline.proxy.arn,
     ])
+  }
+}
+resource "aws_iam_role_policy" "cicd_allow_start_register_task_token" {
+  role   = aws_iam_role.cicd.name
+  name   = "allow-start-register-task-token"
+  policy = data.aws_iam_policy_document.allow_start_register_task_token.json
+}
+data "aws_iam_policy_document" "allow_start_register_task_token" {
+  statement {
+    actions = [
+      "states:StartExecution",
+    ]
+    resources = [
+      aws_sfn_state_machine.register_task_token.arn,
+    ]
   }
 }
 resource "aws_iam_role_policy" "allow_get_image" {

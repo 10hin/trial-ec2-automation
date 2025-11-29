@@ -1,4 +1,5 @@
 data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_availability_zones" "available" {
   state = "available"
@@ -11,6 +12,7 @@ data "aws_availability_zones" "available" {
 # global constants
 locals {
   aws_account_id = data.aws_caller_identity.current.account_id
+  aws_partition  = data.aws_partition.current.partition
   region         = data.aws_region.current.name
   # enum subnet_type
   subnet_type_public  = "public"

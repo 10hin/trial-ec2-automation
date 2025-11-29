@@ -54,3 +54,13 @@ data "aws_iam_policy_document" "allow_assume_by_instance" {
     }
   }
 }
+
+data "aws_iam_policy_document" "allow_assume_by_eventbridge" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+  }
+}
